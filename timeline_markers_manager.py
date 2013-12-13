@@ -56,8 +56,8 @@ class SCENE_OT_MarkerAdd(bpy.types.Operator):
         mm.active_marker_index = len(mm.markers) - 1
 
         # Add a new marker marker
-        scene.timeline_markers.new(self.name, scene.frame_current)
-
+        timeline_marker = scene.timeline_markers.new(self.name)
+        timeline_marker.frame = scene.frame_current
         return {'FINISHED'}
 
 
