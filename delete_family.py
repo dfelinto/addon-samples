@@ -78,7 +78,11 @@ class OBJECT_OT_DeleteFamily(bpy.types.Operator):
         # delete the objects
         override = context.copy()
         override['selected_bases'] = family_base
-        bpy.ops.object.delete(override)
+
+        if bpy.ops.object.delete.poll(override):
+            bpy.ops.object.delete(override)
+        else:
+            return {'CANCELLED'}
 
         return {'FINISHED'}
 
