@@ -83,6 +83,9 @@ class OBJECT_OT_PolygonCreate(bpy.types.Operator):
     def poll(cls, context):
         return True
 
+    def check(self, context):
+        return True
+
     def execute(self, context):
         if self.polygon_mode == 'CIRCLE':
             return create_circle(context, self.circle_radius, self.circle_verts)
