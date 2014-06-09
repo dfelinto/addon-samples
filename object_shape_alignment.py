@@ -251,11 +251,43 @@ class OBJECT_OT_ShapeAlignment(bpy.types.Operator):
                 ),
             default='NONE')
 
+    show_help = bpy.props.BoolProperty(
+            name="Help",
+            description="",
+            default=False,
+            options={'HIDDEN', 'SKIP_SAVE'})
+
     @classmethod
     def poll(cls, context):
         return context.active_object and context.active_object.select
 
+    def help_draw(self, _self, context):
+        layout = _self.layout
+        col = layout.column()
+
+        col.label(text="Before calling this operator pre-arrange your objects in the final shape you want")
+        col.label(text="This way the final order of the elements will match its original arrangement")
+
+        col.separator()
+        col.label(text="Circle", icon='MESH_CIRCLE')
+        col.label(text="Creates a circle around the 3d cursor using the active object as a reference for the radius")
+        col.label(text="It requires at least three selected objects")
+
+        col.separator()
+        col.label(text="Square", icon='MESH_PLANE')
+        col.label(text="Creates a square around the 3d cursor using the active object as one of the corners")
+        col.label(text="It requires multiple of four selected objects (4, 8, 12, ...)")
+
+        col.separator()
+        col.label(text="Line", icon='ZOOMOUT')
+        col.label(text="Creates a line that passes through the the active object and ends in the 3d cursor")
+        col.label(text="It requires at least two selected objects")
+
     def execute(self, context):
+        if self.show_help:
+            context.window_manager.popup_menu(self.help_draw, title='Help', icon='QUESTION')
+            return {'CANCELLED'}
+
         error_message = self.check_errors(len(context.selected_objects), self.shape)
         if error_message:
             self.report({'ERROR'}, error_message)
@@ -281,7 +313,7 @@ class OBJECT_OT_ShapeAlignment(bpy.types.Operator):
 
         if shape == 'SQUARE' and \
            num_objects % 4 != 0:
-            return "Square shape requires selected objects to be a multiple of 4 (4, 8, 16, ...)"
+            return "Square shape requires selected objects to be a multiple of 4 (4, 8, 12, 16, ...)"
 
         elif self.shape == 'LINE' and \
              num_objects < 2:
@@ -329,6 +361,8 @@ class VIEW3D_PT_tools_shape(bpy.types.Panel):
         ops = row.operator("object.shape_alignment", text="", icon='ZOOMOUT', emboss=False)
         ops.shape = 'LINE'
         ops.orientation = orientation
+
+        row.operator("object.shape_alignment", text="", icon='QUESTION', emboss=False).show_help = True
 
         row = col.row()
         row.prop(scene, "use_shape_align_orientation")
