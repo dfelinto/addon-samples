@@ -39,7 +39,7 @@ bl_info = {
     "version": (1,0),
     "blender": (2, 7, 1),
     "location": "Material Special Menu",
-    "description": "Remove the materials that are note used in the selected object",
+    "description": "Remove the materials that are not used in the selected object",
     "warning": "",
     "wiki_url": "https://github.com/dfelinto/addon-samples",
     "tracker_url": "",
