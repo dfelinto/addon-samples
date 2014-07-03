@@ -47,7 +47,7 @@ bl_info = {
 
 
 class OBJECT_OT_MaterialPurge(bpy.types.Operator):
-    """Remove the materials that are note used in the selected object"""
+    """Remove the materials that are not used in the selected object"""
     bl_idname = "object.material_purge"
     bl_label = "Purge Material"
 
