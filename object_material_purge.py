@@ -57,7 +57,7 @@ class OBJECT_OT_MaterialPurge(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.active_object
-        tot_mat = 0
+        tot_purged = 0
         used = [] #
         lookup = []
 
@@ -80,6 +80,7 @@ class OBJECT_OT_MaterialPurge(bpy.types.Operator):
             for i, material_slot in enumerate(material_slots):
                 if not used[i]:
                     material_slot.material = None
+                    tot_purged += 1
         else:
             # remove/re-map materials
             active_material_index = obj.active_material_index
@@ -92,16 +93,18 @@ class OBJECT_OT_MaterialPurge(bpy.types.Operator):
                     obj.active_material_index = remove_i
                     bpy.ops.object.material_slot_remove()
 
+                    tot_purged += 1
                     if remove_i < active_material_index:
                         active_material_index = max(0, active_material_index -1)
 
+            # restore corrected active material index
             obj.active_material_index = active_material_index
 
         # garbage cleanup
         bm.free()
 
-        if tot_mat > 0:
-            self.report({'INFO'}, "Purged {0} material{1}".format(tot_mat, "s" if tot_mat > 1 else ""))
+        if tot_purged > 0:
+            self.report({'INFO'}, "Purged {0} material{1}".format(tot_purged, "s" if tot_purged > 1 else ""))
         else:
             self.report({'INFO'}, "No material to be purged")
         return {'FINISHED'}
