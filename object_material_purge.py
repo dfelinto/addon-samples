@@ -38,16 +38,16 @@ bl_info = {
     "author": "Dalai Felinto (dfelinto)",
     "version": (1,0),
     "blender": (2, 7, 1),
-    "location": "Tool Panel",
-    "description": "Remove the materials that are note used in the selected objects",
+    "location": "Material Special Menu",
+    "description": "Remove the materials that are note used in the selected object",
     "warning": "",
     "wiki_url": "https://github.com/dfelinto/addon-samples",
     "tracker_url": "",
-    "category": "Object"}
+    "category": "Material"}
 
 
 class OBJECT_OT_MaterialPurge(bpy.types.Operator):
-    """Remove the materials that are note used in the selected objects"""
+    """Remove the materials that are note used in the selected object"""
     bl_idname = "object.material_purge"
     bl_label = "Purge Material"
 
