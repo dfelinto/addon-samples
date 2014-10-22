@@ -31,7 +31,7 @@
 
 bl_info = {
     "name": "Selection Groups",
-    "author": "Dalai Felinto (dfelinto)",
+    "author": "Dalai Felinto (dfelinto), Benoit Bolsee (ben2610)",
     "version": (1,0),
     "blender": (2, 7, 2),
     "location": "Tool Panel",
