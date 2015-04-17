@@ -74,10 +74,8 @@ class SuperCameraOperator(bpy.types.Operator):
             space.region_3d.view_perspective = 'CAMERA'
 
             # if you uncomment the next lines, viewport camera fails
-            """
-            if bpy.ops.view3d.view_all.poll():
-                bpy.ops.view3d.view_all()
-            """
+            if bpy.ops.view3d.view_center_camera.poll():
+                bpy.ops.view3d.view_center_camera()
 
             return {'FINISHED'}
         else:
