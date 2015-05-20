@@ -35,6 +35,7 @@ import bpy
 from bpy.props import (
         BoolProperty,
         IntProperty,
+        EnumProperty,
         FloatProperty,
         FloatVectorProperty,
         )
@@ -42,44 +43,84 @@ from bpy.props import (
 import bmesh
 
 
-def add_pixel_plane(plane_width, pixels_width, pixels_height):
+def add_pixel_plane(plane_width, pixels_width, pixels_height, method):
     """"""
     verts = []
     faces = []
 
-    w = plane_width / pixels_width
-    h = w / (pixels_width / pixels_height)
+    if method == 'VERT_PIXEL':
+        w = plane_width / (pixels_width - 1)
+        h = (plane_width / (pixels_width / pixels_height)) / (pixels_height - 1)
 
-    for i in range(pixels_width):
-        for j in range(pixels_height):
-            verts.append(((i + 1) * w,       j * h, 0.0))
-            verts.append((      i * w,       j * h, 0.0))
-            verts.append((      i * w, (j + 1) * h, 0.0))
-            verts.append(((i + 1) * w, (j + 1) * h, 0.0))
+        for i in range(pixels_width):
+            for j in range(pixels_height):
+                verts.append((i * w, j * h, 0.0))
 
-            # the id of the first vertex
-            _id = ((i * pixels_height)  + j) * 4
-            faces.append((_id, _id + 1, _id + 2, _id + 3))
+        for i in range(pixels_width - 1):
+            for j in range(pixels_height - 1):
+                v1 = (pixels_height * i) + j
+                v0 = v1 + 1
+                v2 = v1 + pixels_height
+                v3 = v2 + 1
+
+                # the id of the first vertex
+                faces.append((v0, v1, v2, v3))
+
+    elif method == 'QUAD_PIXEL':
+        w = h = plane_width / pixels_width
+
+        for i in range(pixels_width):
+            for j in range(pixels_height):
+                verts.append(((i + 1) * w,       j * h, 0.0))
+                verts.append((      i * w,       j * h, 0.0))
+                verts.append((      i * w, (j + 1) * h, 0.0))
+                verts.append(((i + 1) * w, (j + 1) * h, 0.0))
+
+                _id = ((i * pixels_height)  + j) * 4
+                faces.append((_id, _id + 1, _id + 2, _id + 3))
+
+    else:
+        assert(False)
 
     return verts, faces
 
 
-def set_pixel_plane_uv(bm):
+def set_pixel_plane_uv(bm, plane_width, pixels_width, pixels_height, method):
     """"""
     from mathutils import Vector
+
+    plane_height = plane_width / (pixels_width / pixels_height)
 
     uv_layer = bm.loops.layers.uv.verify()
     bm.faces.layers.tex.verify()  # currently blender needs both layers.
 
-    # adjust UVs
-    for f in bm.faces:
-        coords = Vector((0.0, 0.0))
-        for l in f.loops:
-            coords += l.vert.co.xy * 0.25
 
-        for l in f.loops:
-            luv = l[uv_layer]
-            luv.uv = coords
+    if method == 'VERT_PIXEL':
+        for f in bm.faces:
+            for l in f.loops:
+                luv = l[uv_layer]
+
+                xy = l.vert.co.xy.copy()
+                xy[0] /= plane_width
+                xy[1] /= plane_height
+
+                luv.uv = xy
+
+    elif method == 'QUAD_PIXEL':
+        # adjust UVs
+        for f in bm.faces:
+            coords = Vector((0.0, 0.0))
+            for l in f.loops:
+                coords += l.vert.co.xy * 0.25
+
+            coords[0] /= plane_width
+            coords[1] /= plane_height
+
+            for l in f.loops:
+                luv = l[uv_layer]
+                luv.uv = coords
+    else:
+        assert(False)
 
 
 class AddPixelPlaneOperator(bpy.types.Operator):
@@ -109,6 +150,15 @@ class AddPixelPlaneOperator(bpy.types.Operator):
             max=4096,
             )
 
+    method = EnumProperty(
+            name="Method",
+            default="VERT_PIXEL",
+            items=(
+                ("QUAD_PIXEL", "Quad-Pixel", "Creates one quad per pixel. All faces are split"),
+                ("VERT_PIXEL", "Vert-Pixel", "Creates one vertex per pixel. All faces are connected"),
+                ),
+            )
+
     # generic transform props
     view_align = BoolProperty(
             name="Align to View",
@@ -135,6 +185,7 @@ class AddPixelPlaneOperator(bpy.types.Operator):
                 self.plane_width,
                 self.pixels_width,
                 self.pixels_height,
+                self.method,
                 )
 
         mesh = bpy.data.meshes.new('Pixel Plane')
@@ -147,7 +198,13 @@ class AddPixelPlaneOperator(bpy.types.Operator):
         for f_idx in faces:
             bm.faces.new([bm.verts[i] for i in f_idx])
 
-        set_pixel_plane_uv(bm)
+        set_pixel_plane_uv(
+                bm,
+                self.plane_width,
+                self.pixels_width,
+                self.pixels_height,
+                self.method,
+                )
 
         bm.to_mesh(mesh)
         mesh.update()
@@ -173,6 +230,9 @@ class AddPixelPlaneOperator(bpy.types.Operator):
         row = col.row(align=True)
         row.prop(self, "pixels_width", text="Width")
         row.prop(self, "pixels_height", text="Height")
+
+        col.separator()
+        col.prop(self, "method")
 
 
 def menu_func(self, context):
