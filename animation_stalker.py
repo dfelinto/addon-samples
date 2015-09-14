@@ -20,8 +20,8 @@
 # ########################################
 # Animation Stalker
 #
-# Copy the selected object position to the active object
-# and bake it as animation.
+# Copy the active object transformations
+# to the selected objects.
 #
 # Dalai Felinto
 #
