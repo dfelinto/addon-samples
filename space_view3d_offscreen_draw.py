@@ -63,7 +63,7 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
 
         try:
             self._offscreen = gpu.offscreen.new(512, int(512 / aspect_ratio), 0)
-            self._texture = self._offscreen.color_object
+            self._texture = self._offscreen.color_texture
 
         except Exception as E:
             print(E)
