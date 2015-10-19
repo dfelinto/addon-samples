@@ -43,8 +43,7 @@ bl_info = {
 
 
 import bpy
-
-from bpy.props import BoolProperty
+from bgl import *
 
 class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
     ''''''
@@ -62,7 +61,7 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
     @staticmethod
     def handle_add(self, context):
         VIEW3D_OT_OffScreenDraw._handle_draw = bpy.types.SpaceView3D.draw_handler_add(
-            draw_callback_px, (self, context), 'WINDOW', 'POST_PIXEL')
+            self.draw_callback_px, (context, ), 'WINDOW', 'POST_PIXEL')
 
     @staticmethod
     def handle_remove():
@@ -88,6 +87,10 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
             return {'FINISHED'}
 
         else:
+            if not self.init(context):
+                self.report({'ERROR'}, "Error initializing offscreen buffer. More details in the console")
+                return {'CANCELLED'}
+
             VIEW3D_OT_OffScreenDraw.handle_add(self, context)
             VIEW3D_OT_OffScreenDraw.is_enabled = True
 
@@ -97,10 +100,89 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
 
+    def init(self, context):
+        import gpu
 
-# draw in 3d-view
-def draw_callback_px(self, context):
-    print('print')
+        try:
+            self._offscreen = gpu.offscreen.new(512, 512, 0)
+            self._color_object = self._offscreen.color_object
+
+        except Exception as E:
+            print(E)
+            return False
+
+        if not self._offscreen:
+            return False
+
+        return True
+
+    def draw_callback_px(self, context):
+        # update the offscreen
+        camera = context.scene.camera
+        modelview_matrix = camera.matrix_world.inverted()
+        projection_matrix = camera.calc_matrix_camera()
+
+        self._offscreen.draw_view3d(
+                context.scene,
+                context.space_data,
+                context.region,
+                projection_matrix,
+                modelview_matrix)
+
+        glDisable(GL_DEPTH_TEST)
+
+        # view setup
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+
+        glMatrixMode(GL_TEXTURE)
+        glPushMatrix()
+        glLoadIdentity()
+
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
+
+        glOrtho(-1, 1, -1, 1, -20, 20)
+        gluLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0)
+
+        act_tex = Buffer(GL_INT, 1)
+        glGetIntegerv(GL_TEXTURE_2D, act_tex)
+
+        # draw routine
+        glEnable(GL_TEXTURE_2D)
+        glActiveTexture(GL_TEXTURE0)
+
+        glBindTexture(GL_TEXTURE_2D, self._color_object)
+
+        texco = [(1, 1), (0, 1), (0, 0), (1,0)]
+        verco = [(-1.0, 1.0), (-1.0, 1.0), (-1.0, -1.0), ( -1.0, -1.0)]
+
+        glPolygonMode(GL_FRONT_AND_BACK , GL_FILL)
+
+        glColor4f(1.0, 1.0, 1.0, 0.0)
+
+        glBegin(GL_QUADS)
+        for i in range(4):
+            glTexCoord3f(texco[i][0], texco[i][1], 0.0)
+            glVertex2f(verco[i][0], verco[i][1])
+        glEnd()
+
+        # restoring settings
+        glBindTexture(GL_TEXTURE_2D, act_tex[0])
+
+        glDisable(GL_TEXTURE_2D)
+
+        # reset view
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+
+        glMatrixMode(GL_TEXTURE)
+        glPopMatrix()
+
+        glMatrixMode(GL_MODELVIEW)
+        glPopMatrix()
 
 
 def register():
