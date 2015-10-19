@@ -1,52 +1,8 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-
-# ########################################
-# Object Material Purge Addon
-#
-# Remove the materials that are not assigned to any face
-# for the selected objects.
-#
-# Dalai Felinto
-#
-# dalaifelinto.com
-# Rio de Janeiro, July 2014
-# ########################################
-
-bl_info = {
-    "name": "Offscreen draw",
-    "author": "Dalai Felinto (dfelinto)",
-    "version": (1,0),
-    "blender": (2, 7, 7),
-    "location": "Toolshelf",
-    "description": "",
-    "warning": "",
-    "wiki_url": "https://github.com/dfelinto/addon-samples",
-    "tracker_url": "",
-    "category": "Material"}
-
-
 import bpy
 from bgl import *
 
 class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
-    ''''''
+    """"""
     bl_idname = "view3d.offscreen_draw"
     bl_label = "Offscreen Draw"
 
@@ -102,10 +58,12 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
 
     def init(self, context):
         import gpu
+        scene = context.scene
+        aspect_ratio = scene.render.resolution_x / scene.render.resolution_y
 
         try:
-            self._offscreen = gpu.offscreen.new(512, 512, 0)
-            self._color_object = self._offscreen.color_object
+            self._offscreen = gpu.offscreen.new(512, int(512 / aspect_ratio), 0)
+            self._texture = self._offscreen.color_object
 
         except Exception as E:
             print(E)
@@ -117,18 +75,30 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
         return True
 
     def draw_callback_px(self, context):
-        # update the offscreen
-        camera = context.scene.camera
+        scene = context.scene
+        aspect_ratio = scene.render.resolution_x / scene.render.resolution_y
+
+        self._update_offscreen(context, self._offscreen)
+        self._opengl_draw(context, self._texture, aspect_ratio, 0.2)
+
+    def _update_offscreen(self, context, offscreen):
+        scene = context.scene
+        camera = scene.camera
+
         modelview_matrix = camera.matrix_world.inverted()
         projection_matrix = camera.calc_matrix_camera()
 
-        self._offscreen.draw_view3d(
-                context.scene,
+        offscreen.draw_view3d(
+                scene,
                 context.space_data,
                 context.region,
                 projection_matrix,
                 modelview_matrix)
 
+    def _opengl_draw(self, context, texture, aspect_ratio, scale):
+        """
+        OpenGL code to draw a rectangle in the viewport
+        """
         glDisable(GL_DEPTH_TEST)
 
         # view setup
@@ -136,32 +106,37 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
         glPushMatrix()
         glLoadIdentity()
 
-        glMatrixMode(GL_TEXTURE)
-        glPushMatrix()
-        glLoadIdentity()
-
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
 
-        glOrtho(-1, 1, -1, 1, -20, 20)
+        glOrtho(-1, 1, -1, 1, -15, 15)
         gluLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0)
 
         act_tex = Buffer(GL_INT, 1)
         glGetIntegerv(GL_TEXTURE_2D, act_tex)
 
+        viewport = Buffer(GL_INT, 4)
+        glGetIntegerv(GL_VIEWPORT, viewport)
+
+        width = int(scale * viewport[2])
+        height = int(width / aspect_ratio)
+
+        glViewport(viewport[0], viewport[1], width, height)
+        glScissor(viewport[0], viewport[1], width, height)
+
         # draw routine
         glEnable(GL_TEXTURE_2D)
         glActiveTexture(GL_TEXTURE0)
 
-        glBindTexture(GL_TEXTURE_2D, self._color_object)
+        glBindTexture(GL_TEXTURE_2D, texture)
 
         texco = [(1, 1), (0, 1), (0, 0), (1,0)]
-        verco = [(-1.0, 1.0), (-1.0, 1.0), (-1.0, -1.0), ( -1.0, -1.0)]
+        verco = [(1.0, 1.0), (-1.0, 1.0), (-1.0, -1.0), (1.0, -1.0)]
 
         glPolygonMode(GL_FRONT_AND_BACK , GL_FILL)
 
-        glColor4f(1.0, 1.0, 1.0, 0.0)
+        glColor4f(1.0, 1.0, 1.0, 1.0)
 
         glBegin(GL_QUADS)
         for i in range(4):
@@ -178,11 +153,11 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
 
-        glMatrixMode(GL_TEXTURE)
-        glPopMatrix()
-
         glMatrixMode(GL_MODELVIEW)
         glPopMatrix()
+
+        glViewport(viewport[0], viewport[1], viewport[2], viewport[3])
+        glScissor(viewport[0], viewport[1], viewport[2], viewport[3])
 
 
 def register():
@@ -195,4 +170,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
