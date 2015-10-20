@@ -83,10 +83,16 @@ class VIEW3D_OT_OffScreenDraw(bpy.types.Operator):
 
     def _update_offscreen(self, context, offscreen):
         scene = context.scene
+        render = scene.render
         camera = scene.camera
 
         modelview_matrix = camera.matrix_world.inverted()
-        projection_matrix = camera.calc_matrix_camera()
+        projection_matrix = camera.calc_matrix_camera(
+                render.resolution_x,
+                render.resolution_y,
+                render.pixel_aspect_x,
+                render.pixel_aspect_y,
+                )
 
         offscreen.draw_view3d(
                 scene,
